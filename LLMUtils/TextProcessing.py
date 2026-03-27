@@ -12,8 +12,8 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+index_name = os.getenv("INDEX_NAME")
 pinecone_api = os.getenv("PINECONE_API")
-
 # ========================== PREPARE TEXT ============================
 
 class PrepareText:
@@ -148,7 +148,7 @@ class PrepareText:
 class PineconeManager:
 
 
-    def __init__(self, index_name,config=None):
+    def __init__(self, config=None):
         try:
             self.pc = Pinecone(api_key=pinecone_api)
             self.index_name = index_name
@@ -323,16 +323,13 @@ class PineconeManager:
 
 class RetrieverService:
 
-    def __init__(self, file_paths, user_id, config, api_key):
+    def __init__(self, file_paths, user_id, config,gemini_api: str):
         self.file_paths = file_paths
         self.user_id = str(user_id)
         self.config = config
-        self.api_key = api_key
-
         self.file_names = self._extract_file_names()
-
+        self.api_key = gemini_api
         self.pm = PineconeManager(
-            index_name='rag-agent',
             config=config
         )
 

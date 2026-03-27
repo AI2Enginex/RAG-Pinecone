@@ -20,7 +20,7 @@ class QASystem(PrepareText, ChatGoogleGENAI):
                 file_paths=file_path,
                 user_id=user_id,
                 config=config,
-                api_key=api_key
+                gemini_api=api_key
             )
 
             self.retriever = self.service.get_retriever(
@@ -272,14 +272,14 @@ if __name__ == "__main__":
         )
 
         file_path = [
-            "E:/RAG-QA/MCA2.pdf",
+            "E:/RAG-QA/data.pdf",
             "E:/RAG-QA/MCA.pdf",
             "E:/RAG-QA/MCA1.pdf",
-            "E:/RAG-QA/data.pdf"]
+            "E:/RAG-QA/MCA2.pdf"]
 
         qa_system = QASystemGraphExecution(
             file_path=file_path,
-            userid=1,
+            userid=350,
             config=config,
             separator=["\n\n", "\n", " ", ""],
             chunk_size=1500,
