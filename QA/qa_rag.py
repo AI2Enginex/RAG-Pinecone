@@ -263,35 +263,30 @@ if __name__ == "__main__":
         config = GeminiConfig(
             chat_model_name="gemini-3-flash-preview",
             embedding_model_name="sentence-transformers/all-MiniLM-L6-v2",
-            temperature=0,
+            temperature=0.4,
             top_p=0.8,
             top_k=32,
-            max_output_tokens=3000,
-            generation_max_tokens=8192,
+            max_output_tokens=15000,
+            generation_max_tokens=20000,
             api_key=api_key
         )
 
         file_path = [
-            "E:/Tender Project/TATAAGM.pdf",
-            "E:/Tender Project/MCA2.pdf",
-            "E:/Tender Project/RILAGM.pdf",
-            "E:/Tender Project/MCA.pdf",
-            "E:/Tender Project/MCA1.pdf",
-            "E:/RAG-QA/data.pdf"
-
-        ]
-
-        question = input("Ask your question here: ")
+            "E:/RAG-QA/MCA2.pdf",
+            "E:/RAG-QA/MCA.pdf",
+            "E:/RAG-QA/MCA1.pdf",
+            "E:/RAG-QA/data.pdf"]
 
         qa_system = QASystemGraphExecution(
             file_path=file_path,
-            userid=100,
+            userid=1,
             config=config,
             separator=["\n\n", "\n", " ", ""],
             chunk_size=1500,
             overlap=250
         )
-
+        
+        question = input("Ask your question here: ")
         answer = qa_system.answer(question=question)
 
         print("\nQuestion:", question)

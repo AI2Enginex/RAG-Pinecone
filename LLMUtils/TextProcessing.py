@@ -282,7 +282,7 @@ class PineconeManager:
     # -----------------------------------
     # CLEAN MULTI FILE RETRIEVER
     # -----------------------------------
-    def get_retriever_multi(self, user_id: str, file_names: list, k=40):
+    def get_retriever_multi(self, user_id: str, file_names: list, k=100):
 
         try:
             existing_files, missing_files = self.embeddings_exist_multi(user_id, file_names)
@@ -414,37 +414,6 @@ class RetrieverService:
 
 if __name__ == "__main__":
 
-    from LLMUtils.LLMConfigs import GeminiConfig, api_key
-
-    config = GeminiConfig(
-        chat_model_name="gemini-3-flash-preview",
-        embedding_model_name="sentence-transformers/all-MiniLM-L6-v2",
-        temperature=0,
-        top_p=0.8,
-        top_k=32,
-        max_output_tokens=3000,
-        generation_max_tokens=8192,
-        api_key=api_key
-    )
-
-    file_paths = [
-    "E:/Tender Project/TATAAGM.pdf",
-    "E:/Tender Project/MCA2.pdf",
-    "E:/Tender Project/RILAGM.pdf",
-    "E:/Tender Project/MCA.pdf",
-    "E:/Tender Project/MCA1.pdf"
-    
-    ]
-
-    service = RetrieverService(
-        file_paths=file_paths,
-        user_id=100,
-        config=config,
-        api_key=api_key
-    )
-
-    retriever = service.get_retriever(chunk=1500, overlap=250, sep=["\n\n", "\n", " ", ""], batch_size=10)
-
-    print(retriever)
+    pass
 
     
