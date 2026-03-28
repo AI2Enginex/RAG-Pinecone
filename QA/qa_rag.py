@@ -9,13 +9,11 @@ from LLMUtils.TextProcessing import RetrieverService
 
 class QASystem(PrepareText, ChatGoogleGENAI):
 
-    def __init__(self, file_path: str, user_id: int,config=None, separator=None, chunk_size=None, overlap=None):
+    def __init__(self, file_path: str, user_id: int, config=None, separator=None, chunk_size=None, overlap=None):
 
         try:
-            # Initialize LLM
             ChatGoogleGENAI.__init__(self, config=config)
 
-           
             self.service = RetrieverService(
                 file_paths=file_path,
                 user_id=user_id,
@@ -23,28 +21,58 @@ class QASystem(PrepareText, ChatGoogleGENAI):
                 gemini_api=api_key
             )
 
-            self.retriever = self.service.get_retriever(
-                chunk=chunk_size,
-                overlap=overlap,
-                sep=separator,
-                batch_size=10
-            )
+            self.separator = separator
+            self.chunk_size = chunk_size
+            self.overlap = overlap
+
+            self.is_prepared = False  # NEW FLAG
 
             print("Agentic QA System initialized with RetrieverService")
 
         except Exception as e:
             print(f"Error initializing QASystem: {e}")
-            self.retriever = None
+
+
+    # NEW: RUN ONCE ONLY
+    def prepare_chunks(self):
+        try:
+            if self.is_prepared:
+                return
+
+            self.service.prepare_data(
+                chunk=self.chunk_size,
+                overlap=self.overlap,
+                sep=self.separator,
+                batch_size=10
+            )
+
+            self.is_prepared = True
+
+        except Exception as e:
+            print(f"Error in prepare_data: {e}")
 
 
     def retrieve_chunks(self, state: QAState):
         try:
-            if not self.retriever:
+            # ONLY FILTER (LIGHT OPERATION)
+            filtered_files = self.service.pm.extract_files_from_query(
+                query=state["question"],
+                available_files=self.service.file_names
+            )
+
+            print(f"Filtered files from query: {filtered_files}")
+
+            retriever = self.service.pm._build_retriever(
+                user_id=self.service.user_id,
+                file_names=filtered_files,
+                k=100
+            )
+
+            if not retriever:
                 print("Retriever not initialized!")
                 return state
 
-            
-            docs = self.retriever.invoke(state["question"])
+            docs = retriever.invoke(state["question"])
 
             state["retrieved_chunks"] = [
                 doc.page_content if hasattr(doc, "page_content") else str(doc)
@@ -63,7 +91,7 @@ class QASystem(PrepareText, ChatGoogleGENAI):
             return content
 
         if isinstance(content, list):
-            texts = []
+            texts = list()
             for item in content:
                 if isinstance(item, str):
                     texts.append(item)
@@ -184,7 +212,7 @@ class QASystem(PrepareText, ChatGoogleGENAI):
 
 class QASystemGraphExecution(QASystem):
 
-    def __init__(self, file_path: str, userid: int,config=None,
+    def __init__(self, file_path: str, userid: int, config=None,
                  separator=None, chunk_size=None, overlap=None):
         try:
             super().__init__(
@@ -195,6 +223,10 @@ class QASystemGraphExecution(QASystem):
                 chunk_size=chunk_size,
                 overlap=overlap
             )
+
+            # RUN INGESTION ONCE HERE
+            self.prepare_chunks()
+
         except Exception as e:
             print(f"Error initializing GraphExecution: {e}")
 
@@ -259,6 +291,7 @@ class QASystemGraphExecution(QASystem):
 # ========================== MAIN EXECUTION ============================
 
 if __name__ == "__main__":
+
     try:
         config = GeminiConfig(
             chat_model_name="gemini-3-flash-preview",
@@ -275,17 +308,19 @@ if __name__ == "__main__":
             "E:/RAG-QA/data.pdf",
             "E:/RAG-QA/MCA.pdf",
             "E:/RAG-QA/MCA1.pdf",
-            "E:/RAG-QA/MCA2.pdf"]
+            "E:/RAG-QA/MCA2.pdf",
+            "E:/RAG-QA/Book.pdf"
+        ]
 
         qa_system = QASystemGraphExecution(
             file_path=file_path,
-            userid=350,
+            userid=100,
             config=config,
             separator=["\n\n", "\n", " ", ""],
             chunk_size=1500,
             overlap=250
         )
-        
+
         question = input("Ask your question here: ")
         answer = qa_system.answer(question=question)
 

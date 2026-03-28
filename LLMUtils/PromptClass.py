@@ -6,12 +6,10 @@ class PromptTemplates:
     @classmethod
     def key_word_extraction(cls):
         prompt = """
-        You are an intelligent assistant.
-        Below is the information retrieved from the document:
-
-        Do NOT speculate or add information that is not supported by the text.
-
-        If the answer is not found simply reply "Sorry!! answer not found"
+        Answer ONLY using the provided context.
+        Do NOT combine information from different documents.
+        If multiple documents are present, focus only on the relevant one.
+        If unsure, say "Not found in document".
         {context}
         Answer strictly based on above.
         Question: {question}
@@ -28,12 +26,10 @@ class PromptTemplates:
 
             Question: {question}
 
-            Carefully analyze the content and provide a clear, well-reasoned answer based ONLY on the provided information.
-            Make sure you cover all the points and no information is missed.
-
-            Do NOT speculate or add information that is not supported by the text.
-
-            If the answer is not found simply reply "Sorry!! answer not found"
+           Answer ONLY using the provided context.
+            Do NOT combine information from different documents.
+            If multiple documents are present, focus only on the relevant one.
+            If unsure, say "Not found in document".
             {context}
             Question: {question}
             Think step by step based ONLY on the provided content.

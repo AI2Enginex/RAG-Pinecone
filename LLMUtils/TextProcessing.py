@@ -1,5 +1,4 @@
 from LLMUtils.ReadData import ReadFile
-from textwrap import dedent
 import re
 from langchain_core.documents import Document
 from LLMUtils.PrepareChunks import TextChunks
@@ -8,13 +7,13 @@ from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone
 import cleantext
 import os
-
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
 index_name = os.getenv("INDEX_NAME")
 pinecone_api = os.getenv("PINECONE_API")
-# ========================== PREPARE TEXT ============================
+
 
 class PrepareText:
     """
@@ -144,7 +143,6 @@ class PrepareText:
 
         return vectors
 
-
 class PineconeManager:
 
 
@@ -220,7 +218,7 @@ class PineconeManager:
     # -----------------------------------
     # PRIVATE: BUILD RETRIEVER
     # -----------------------------------
-    def _build_retriever(self, user_id: str, file_names: list, k=40):
+    def _build_retriever(self, user_id: str, file_names: list, k: int):
 
         try:
             vector_store = self.load_vector_store()
@@ -256,74 +254,33 @@ class PineconeManager:
 
 
     # -----------------------------------
-    # Get retriever (single file - unchanged)
+    # NEW: EXTRACT FILES FROM QUERY
     # -----------------------------------
-    def get_retriever(self, user_id: str, file_name: str, k=40):
+    def extract_files_from_query(self, query: str, available_files: list):
 
         try:
-            if self.embeddings_exist(user_id=user_id, file_name=file_name) is False:
-                return "Invalid Parameters"
-            
-            return self.load_vector_store().as_retriever(
-                search_kwargs={
-                    "k": k,
-                    "filter": {
-                        "user_id": user_id,
-                        "file_name": file_name
-                    }
-                }
-            )
+            if not query:
+                return available_files
+
+            query = query.lower()
+            matched_files = []
+
+            for file in available_files:
+                name = file.lower()
+                if name in query:
+                    matched_files.append(file)
+
+            return matched_files if matched_files else available_files
 
         except Exception as e:
-            print(f"[Pinecone] Error getting retriever: {e}")
-            return None
+            print(f"[Pinecone] Error extracting files from query: {e}")
+            return available_files
 
-
-    # -----------------------------------
-    # CLEAN MULTI FILE RETRIEVER
-    # -----------------------------------
-    def get_retriever_multi(self, user_id: str, file_names: list, k=100):
-
-        try:
-            existing_files, missing_files = self.embeddings_exist_multi(user_id, file_names)
-
-            print(f"Existing files: {existing_files}")
-            print(f"Missing files: {missing_files}")
-
-            # determine status
-            if not existing_files:
-                return self._format_response(
-                    status="missing_all",
-                    missing=missing_files
-                )
-
-            retriever = self._build_retriever(
-                user_id=user_id,
-                file_names=existing_files if missing_files else file_names,
-                k=k
-            )
-
-            if missing_files:
-                return self._format_response(
-                    status="partial_missing",
-                    retriever=retriever,
-                    existing=existing_files,
-                    missing=missing_files
-                )
-
-            return self._format_response(
-                status="all_present",
-                retriever=retriever,
-                existing=existing_files
-            )
-
-        except Exception as e:
-            print(f"[Pinecone] Error in multi retriever: {e}")
-            return self._format_response(status="error")
 
 class RetrieverService:
 
-    def __init__(self, file_paths, user_id, config,gemini_api: str):
+    def __init__(self, file_paths: list, user_id: int, config,gemini_api: str):
+        
         self.file_paths = file_paths
         self.user_id = str(user_id)
         self.config = config
@@ -333,22 +290,25 @@ class RetrieverService:
             config=config
         )
 
+
     # -----------------------------------
     # PRIVATE: Extract file names
     # -----------------------------------
     def _extract_file_names(self):
-        import os
+        
         return [os.path.basename(path) for path in self.file_paths]
+
 
     # -----------------------------------
     # PRIVATE: Get missing file paths
     # -----------------------------------
     def _get_missing_paths(self, missing_files):
-        import os
+        
         return [
             path for path in self.file_paths
             if os.path.basename(path) in missing_files
         ]
+
 
     # -----------------------------------
     # PRIVATE: Ingest missing files
@@ -377,40 +337,59 @@ class RetrieverService:
         except Exception as e:
             print(f"[RetrieverService] Ingestion error: {e}")
 
-    # -----------------------------------
-    # PUBLIC: Get final retriever
-    # -----------------------------------
-    def get_retriever(self,chunk: int, overlap: int, sep: list, batch_size: int):
+    
+    def prepare_data(self, chunk: int, overlap: int, sep: list, batch_size: int):
         try:
-            result = self.pm.get_retriever_multi(
-                user_id=self.user_id,
-                file_names=self.file_names
+            existing_files, missing_files = self.pm.embeddings_exist_multi(
+            user_id=self.user_id,
+            file_names=self.file_names
             )
 
-            # handle missing files
-            if result["status"] in ["missing_all", "partial_missing"]:
+            print(f"Existing files: {existing_files}")
+            print(f"Missing files: {missing_files}")
 
-                missing_files = result["missing_files"]
+            if missing_files:
                 missing_paths = self._get_missing_paths(missing_files)
 
-                self._ingest_files(missing_paths=missing_paths,
-                                   chunk=chunk, overlap=overlap, sep=sep, batch_size=batch_size)
-
-                # re-fetch after ingestion
-                result = self.pm.get_retriever_multi(
-                    user_id=self.user_id,
-                    file_names=self.file_names
+                self._ingest_files(
+                    missing_paths=missing_paths,
+                    chunk=chunk,
+                    overlap=overlap,
+                    sep=sep,
+                    batch_size=batch_size
                 )
 
-            return result.get("retriever", None)
+                time.sleep(30)
+        except Exception as e:
+            return e
+    # -----------------------------------
+    # PUBLIC: Get final retriever (UPDATED LOGIC)
+    # -----------------------------------
+    def get_retriever(self, query: str):
+        try:
+            
+            filtered_files = self.pm.extract_files_from_query(
+                query=query,
+                available_files=self.file_names
+            )
+
+            print(f"Filtered files from query: {filtered_files}")
+
+            # -----------------------------------
+            # STEP 4: BUILD RETRIEVER
+            # -----------------------------------
+            retriever = self.pm._build_retriever(
+                user_id=self.user_id,
+                file_names=filtered_files,
+                k=100
+            )
+
+            return retriever
 
         except Exception as e:
             print(f"[RetrieverService] Error: {e}")
             return None
-# ========================== MAIN ============================
-
+        
+        
 if __name__ == "__main__":
-
     pass
-
-    
