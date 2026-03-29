@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+index_name = os.getenv("INDEX_NAME")
 pinecone_api = os.getenv("PINECONE_API")
 
 # ========================== VECTOR STORE ============================
@@ -27,7 +28,7 @@ class Vectors:
             
             # Initialize Pinecone
             pc = Pinecone(api_key=os.getenv("PINECONE_API"))
-            cls.index = pc.Index("rag-agent")
+            cls.index = pc.Index(index_name)
 
             return cls.embeddings
         except Exception as e:
