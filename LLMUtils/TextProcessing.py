@@ -14,11 +14,12 @@ load_dotenv()
 index_name = os.getenv("INDEX_NAME")
 pinecone_api = os.getenv("PINECONE_API")
 
-
+# Class for managing the text preprocessing 
+# pipeline and embedding storage in Pinecone.
 class PrepareText:
     """
     Reads, cleans, chunks, and vectorizes MULTIPLE PDF files
-    with section detection metadata.
+    with section detection and metadata.
     """
 
     def __init__(self, file_paths, config=None, api_key: str = None):
@@ -143,6 +144,9 @@ class PrepareText:
 
         return vectors
 
+
+# Responsible for ingesting data into and retrieving data from the Pinecone index.
+# Applies file-level filtering based on user queries.
 class PineconeManager:
 
 
@@ -156,7 +160,8 @@ class PineconeManager:
         except Exception as e:
             print(f"[Pinecone] Init error: {e}")
 
-
+    
+    # Method to check if embeddings alreasy exists for a file (Supports only single file)
     def embeddings_exist(self, user_id: str, file_name: str):
 
         try:
@@ -180,14 +185,12 @@ class PineconeManager:
             return False
 
 
-    # -----------------------------------
-    # MULTI FILE CHECK
-    # -----------------------------------
+    # Method to check if embeddings alreasy exists for a file (Supports Multiple files)
     def embeddings_exist_multi(self, user_id: str, file_names: list):
 
         try:
-            existing_files = []
-            missing_files = []
+            existing_files = list()
+            missing_files = list()
 
             for file_name in file_names:
                 if self.embeddings_exist(user_id, file_name):
@@ -201,7 +204,7 @@ class PineconeManager:
             print(f"[Pinecone] Error in multi check: {e}")
             return [], file_names
 
-
+    # Method to load the Vector
     def load_vector_store(self):
 
         try:
@@ -215,9 +218,7 @@ class PineconeManager:
             return None
 
 
-    # -----------------------------------
-    # PRIVATE: BUILD RETRIEVER
-    # -----------------------------------
+    # Method to get embeddings based on user_id and file_name (if already exists)
     def _build_retriever(self, user_id: str, file_names: list, k: int):
 
         try:
@@ -240,9 +241,6 @@ class PineconeManager:
             return None
 
 
-    # -----------------------------------
-    # PRIVATE: FORMAT RESPONSE
-    # -----------------------------------
     def _format_response(self, status, retriever=None, existing=None, missing=None):
 
         return {
@@ -253,9 +251,7 @@ class PineconeManager:
         }
 
 
-    # -----------------------------------
-    # NEW: EXTRACT FILES FROM QUERY
-    # -----------------------------------
+    # Method to Extract the File names from the Query (File level Isolation for a User)
     def extract_files_from_query(self, query: str, available_files: list):
 
         try:
@@ -277,6 +273,8 @@ class PineconeManager:
             return available_files
 
 
+# Class to manage entire Retreival and Ingestion Pipeline
+# Performs Retrieval if the User and the File already present else switch to Ingestion.
 class RetrieverService:
 
     def __init__(self, file_paths: list, user_id: int, config,gemini_api: str):
@@ -291,17 +289,13 @@ class RetrieverService:
         )
 
 
-    # -----------------------------------
-    # PRIVATE: Extract file names
-    # -----------------------------------
+    # funtion to extract file names
     def _extract_file_names(self):
         
         return [os.path.basename(path) for path in self.file_paths]
 
 
-    # -----------------------------------
-    # PRIVATE: Get missing file paths
-    # -----------------------------------
+    # function to get missing files-
     def _get_missing_paths(self, missing_files):
         
         return [
@@ -310,9 +304,7 @@ class RetrieverService:
         ]
 
 
-    # -----------------------------------
-    # PRIVATE: Ingest missing files
-    # -----------------------------------
+    # Method to Ingest the file and the user id to the Pinecone Vectorstore if not already present.
     def _ingest_files(self, missing_paths: list, chunk: int, overlap: int, sep: list, batch_size: int):
         try:
             if not missing_paths:
@@ -338,6 +330,8 @@ class RetrieverService:
             print(f"[RetrieverService] Ingestion error: {e}")
 
     
+    # Method to keep track of the missing and existing files.
+    # The files ingestion is executes first everytime the user adds a new file.
     def prepare_data(self, chunk: int, overlap: int, sep: list, batch_size: int):
         try:
             existing_files, missing_files = self.pm.embeddings_exist_multi(
@@ -362,9 +356,8 @@ class RetrieverService:
                 time.sleep(30)
         except Exception as e:
             return e
-    # -----------------------------------
-    # PUBLIC: Get final retriever (UPDATED LOGIC)
-    # -----------------------------------
+        
+    # Filters the files based on user's query and returns the Retriever
     def get_retriever(self, query: str):
         try:
             
@@ -375,9 +368,7 @@ class RetrieverService:
 
             print(f"Filtered files from query: {filtered_files}")
 
-            # -----------------------------------
-            # STEP 4: BUILD RETRIEVER
-            # -----------------------------------
+            
             retriever = self.pm._build_retriever(
                 user_id=self.user_id,
                 file_names=filtered_files,

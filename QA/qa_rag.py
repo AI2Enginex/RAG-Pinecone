@@ -7,13 +7,15 @@ from LLMUtils.TextProcessing import RetrieverService
 
 # ========================== QASYSTEM ============================
 
+# Class to Initialize the QA system process
 class QASystem(PrepareText, ChatGoogleGENAI):
 
     def __init__(self, file_path: str, user_id: int, config=None, separator=None, chunk_size=None, overlap=None):
 
         try:
             ChatGoogleGENAI.__init__(self, config=config)
-
+            
+            # Loads the Retriever
             self.service = RetrieverService(
                 file_paths=file_path,
                 user_id=user_id,
@@ -33,7 +35,7 @@ class QASystem(PrepareText, ChatGoogleGENAI):
             print(f"Error initializing QASystem: {e}")
 
 
-    # NEW: RUN ONCE ONLY
+    # Always runs the File Ingestion first
     def prepare_chunks(self):
         try:
             if self.is_prepared:
@@ -51,17 +53,20 @@ class QASystem(PrepareText, ChatGoogleGENAI):
         except Exception as e:
             print(f"Error in prepare_data: {e}")
 
-
+    
+    # Retrieves Chunks from the Vectorstore based on User's query
     def retrieve_chunks(self, state: QAState):
         try:
-            # ONLY FILTER (LIGHT OPERATION)
+            
+            # Filters file from the Query
             filtered_files = self.service.pm.extract_files_from_query(
                 query=state["question"],
                 available_files=self.service.file_names
             )
 
             print(f"Filtered files from query: {filtered_files}")
-
+            
+            # Initialize the Retriever
             retriever = self.service.pm._build_retriever(
                 user_id=self.service.user_id,
                 file_names=filtered_files,
@@ -71,7 +76,8 @@ class QASystem(PrepareText, ChatGoogleGENAI):
             if not retriever:
                 print("Retriever not initialized!")
                 return state
-
+            
+            # Search for relavant Documents based on User's query
             docs = retriever.invoke(state["question"])
 
             state["retrieved_chunks"] = [
@@ -85,7 +91,7 @@ class QASystem(PrepareText, ChatGoogleGENAI):
             print(f"Error retrieving chunks: {e}")
             return state
 
-
+    # Method to Normalize the LLM Output
     def normalize_llm_output(self, content):
         if isinstance(content, str):
             return content
@@ -106,7 +112,8 @@ class QASystem(PrepareText, ChatGoogleGENAI):
 
         return str(content)
 
-
+    
+    # Method to Generate LLM Response based on Selected Prompt Type
     def answer_questions(self, state: QAState):
         try:
             if not self.llm:
@@ -143,7 +150,7 @@ class QASystem(PrepareText, ChatGoogleGENAI):
             print(f"Error answering question: {e}")
             return state
 
-
+    # Method to Verify the Response from the LLM.
     def verify_answer(self, state: QAState):
         try:
             prompt_manager = PromptManager()
@@ -174,7 +181,8 @@ class QASystem(PrepareText, ChatGoogleGENAI):
             print(f"Error verifying answer: {e}")
             return state
 
-
+    
+    # Method to Select Actions and Prompt Type based on User's query
     def agent_think(self, state: QAState):
         try:
             question = state["question"].lower()
@@ -310,11 +318,12 @@ if __name__ == "__main__":
             "E:/RAG-QA/MCA1.pdf",
             "E:/RAG-QA/MCA2.pdf",
             "E:/RAG-QA/Book.pdf"
+
         ]
 
         qa_system = QASystemGraphExecution(
             file_path=file_path,
-            userid=100,
+            userid=7,
             config=config,
             separator=["\n\n", "\n", " ", ""],
             chunk_size=1500,
