@@ -1,8 +1,8 @@
-from LLMUtils.ReadData import ReadFile
+from FileIngest.ReadData import ReadFile
 import re
 from langchain_core.documents import Document
 from LLMUtils.PrepareChunks import TextChunks
-from LLMUtils.VectoreStore import Vectors
+from Vectors.VectoreStore import Vectors
 from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone
 import cleantext

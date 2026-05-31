@@ -1,6 +1,6 @@
 from LLMUtils.LLMConfigs import ChatGoogleGENAI, GeminiConfig, QAState, api_key
 from langgraph.graph import StateGraph
-from LLMUtils.PromptClass import PromptManager
+from PromptClass.PromptClass import PromptManager
 from LLMUtils.TextProcessing import PrepareText
 from LLMUtils.TextProcessing import RetrieverService
 
@@ -10,7 +10,7 @@ from LLMUtils.TextProcessing import RetrieverService
 # Class to Initialize the QA system process
 class QASystem(PrepareText, ChatGoogleGENAI):
 
-    def __init__(self, file_path: str, user_id: int, config=None, separator=None, chunk_size=None, overlap=None):
+    def __init__(self, file_path: str,user_id: int,config=None, separator=None, chunk_size=None, overlap=None):
 
         try:
             ChatGoogleGENAI.__init__(self, config=config)
@@ -220,7 +220,7 @@ class QASystem(PrepareText, ChatGoogleGENAI):
 
 class QASystemGraphExecution(QASystem):
 
-    def __init__(self, file_path: str, userid: int, config=None,
+    def __init__(self, file_path: str,userid: int, config=None,
                  separator=None, chunk_size=None, overlap=None):
         try:
             super().__init__(
@@ -234,6 +234,7 @@ class QASystemGraphExecution(QASystem):
 
             # RUN INGESTION ONCE HERE
             self.prepare_chunks()
+            
 
         except Exception as e:
             print(f"Error initializing GraphExecution: {e}")

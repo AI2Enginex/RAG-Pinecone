@@ -1,5 +1,8 @@
 .vscode/settings.json
 LLMUtils/__pycache__
+FileIngest/__pycache__
+PromptClass/__pycache__
+Vectors/__pycache__
 QA/__pycache__
 pineconeclass.py
 .env
